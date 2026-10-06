@@ -26,6 +26,18 @@ from eva.memory.models import (
 )
 from eva.memory.postgres import PostgresConfig, PostgreSQLMemoryRepository
 from eva.memory.repository import MemoryRepository
+from eva.memory.working import (
+    InMemoryWorkingMemoryRepository,
+    RedisConfig,
+    RedisWorkingMemoryRepository,
+    WorkingMemoryConfigurationError,
+    WorkingMemoryConnectionError,
+    WorkingMemoryEntry,
+    WorkingMemoryError,
+    WorkingMemoryNotFoundError,
+    WorkingMemoryRepository,
+    WorkingMemorySerializationError,
+)
 
 __all__ = [
     "AccessMetadata",
@@ -37,6 +49,7 @@ __all__ = [
     "EmbeddingReference",
     "ImmutableMemoryError",
     "InMemoryMemoryRepository",
+    "InMemoryWorkingMemoryRepository",
     "MemoryError",
     "MemoryNotFoundError",
     "MemoryQuery",
@@ -48,5 +61,14 @@ __all__ = [
     "PostgresConfig",
     "PostgreSQLMemoryRepository",
     "ProvenanceRecord",
+    "RedisConfig",
+    "RedisWorkingMemoryRepository",
     "RetentionMetadata",
+    "WorkingMemoryConfigurationError",
+    "WorkingMemoryConnectionError",
+    "WorkingMemoryEntry",
+    "WorkingMemoryError",
+    "WorkingMemoryNotFoundError",
+    "WorkingMemoryRepository",
+    "WorkingMemorySerializationError",
 ]

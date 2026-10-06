@@ -6,15 +6,18 @@
 
 ## Current Milestone
 
-**Milestone 1E.3 — PostgreSQL Persistent Memory Repository**
+**Milestone 1E.4 — Working Memory and Redis Foundation**
 
-EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), provider-neutral model intelligence architecture (1C), central model registry & capabilities (1D.1), real external AI model provider integration via Google Gemini (1D.2), deterministic capability-aware model selection (1D.3), the formal memory architecture specification (1E.1), memory data models with an in-memory repository (1E.2), and a production-oriented PostgreSQL persistent repository (1E.3).
+EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), provider-neutral model intelligence architecture (1C), central model registry & capabilities (1D.1), real external AI model provider integration via Google Gemini (1D.2), deterministic capability-aware model selection (1D.3), the formal memory architecture specification (1E.1), memory data models with an in-memory repository (1E.2), a production-oriented PostgreSQL persistent repository (1E.3), and an ephemeral Redis-backed working memory layer (1E.4).
 
-The memory persistence subsystem establishes:
-- **PostgreSQL Relational Persistence** — `PostgreSQLMemoryRepository` implementing the canonical `MemoryRepository` contract with transactional CRUD and deterministic indexed queries.
-- **Lightweight Async Driver** — Native `asyncpg` driver integration with managed connection pooling (`PostgresPoolManager`).
-- **Database Schema & Migrations** — Fully reversible SQL migrations (`migrations/001_create_memory_records.sql`) defining the `memory_records` table, JSONB metadata structures, and B-tree indexes for fast lookups.
-- **Secure Configuration & Fault Tolerance** — Typed `PostgresConfig` supporting `EVA_POSTGRES_DSN`, credential masking in logs/errors, and optional database startup allowing the system to run without an active PostgreSQL instance.
+The memory subsystem establishes:
+- **Persistent Memory (PostgreSQL)** — `PostgreSQLMemoryRepository` implementing the canonical `MemoryRepository` contract with transactional CRUD, connection pooling (`asyncpg`), and deterministic indexed queries.
+- **Working Memory Layer (Redis)** — `RedisWorkingMemoryRepository` implementing the `WorkingMemoryRepository` contract for ephemeral, fast, session-scoped working context.
+- **Session & Namespace Isolation** — Structured keys (`<prefix>:<session_id>:<namespace>:<key>`), wildcard pattern scanning, and safe scoped deletion (`clear_session`) without destructive database flush commands.
+- **TTL / Expiration Lifecycle** — Native Redis key expiration (`ex=...`), explicit TTL management (`set_ttl`), zero/negative TTL expiration handling, and UTC in-memory simulation.
+- **Safe JSON Serialization** — Strict serialization and deserialization of JSON-compatible primitives, rejecting unsafe arbitrary Python object execution.
+- **In-Memory Reference Implementation** — `InMemoryWorkingMemoryRepository` providing zero-dependency local testing and contract parity with the Redis implementation.
+- **Fault-Tolerant Configuration** — Typed `RedisConfig` supporting `EVA_REDIS_URL`, connection pooling, credential redaction in logs (`masked_url`), and optional startup behavior where EVA functions seamlessly without an active Redis server.
 
 ---
 

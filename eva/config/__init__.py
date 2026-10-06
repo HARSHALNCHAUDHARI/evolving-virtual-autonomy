@@ -49,8 +49,12 @@ class EVASettings(BaseSettings):
     postgres_max_connections: int = 10
     postgres_connect_timeout: float = 10.0
 
-    # Redis (optional — not required for Milestone 1A)
+    # Redis / Working Memory (optional — not required for mock/in-memory mode)
     redis_url: str | None = None
+    redis_max_connections: int = 10
+    redis_socket_timeout: float = 5.0
+    redis_key_prefix: str = "eva:working"
+    redis_default_ttl_seconds: int | None = None
 
     @model_validator(mode="after")
     def _sync_database_settings(self) -> EVASettings:

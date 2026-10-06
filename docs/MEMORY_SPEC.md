@@ -2,7 +2,7 @@
 
 > **Document Version:** 1.0.0
 > **Status:** Authoritative Foundation Specification
-> **Milestone:** 1E.1 — Memory Architecture Specification
+> **Milestone:** 1E.4 — Working Memory and Redis Foundation
 > **Target Subsystem:** `eva.memory`
 
 ---
@@ -532,6 +532,7 @@ The Milestone 1E foundation is designed to support the following advanced capabi
 - **1E.1 — Architecture Specification** — COMPLETE: Authoritative architecture, data models, storage definitions, and lifecycle contracts defined in `docs/MEMORY_SPEC.md`.
 - **1E.2 — Data Models & In-Memory Repository** — COMPLETE: Concrete Pydantic models in `eva/memory/models.py`, `MemoryRepository` protocol in `eva/memory/repository.py`, and `InMemoryMemoryRepository` in `eva/memory/in_memory.py`.
 - **1E.3 — PostgreSQL Persistent Repository** — COMPLETE: PostgreSQL relational persistence layer with asyncpg driver, connection pooling, migrations, and `PostgreSQLMemoryRepository`.
+- **1E.4 — Working Memory and Redis Foundation** — COMPLETE: Ephemeral working memory abstraction, Redis-backed storage with connection pooling, in-memory reference implementation, TTL lifecycle, session/namespace isolation, and safe JSON serialization.
 
 ### 13.2 PostgreSQL Relational Persistence Architecture (1E.3)
 - **Role**: Durable system of record providing transactional persistence, relational integrity, and deterministic indexed filtering.
@@ -547,16 +548,43 @@ The Milestone 1E foundation is designed to support the following advanced capabi
   - `PostgreSQLMemoryRepository` in `eva/memory/postgres/repository.py` conforming to `MemoryRepository`.
   - Enforces `DuplicateMemoryError` on ID collision, `MemoryNotFoundError` on missing record updates, and `ImmutableMemoryError` on immutable record tampering.
   - Deterministic query compilation preserving AND semantics and reverse-chronological ordering.
-- **Current Scope Boundaries & Limitations**:
-  - `pgvector` dense vector embeddings and HNSW indexing remain future milestones (Milestone 1E.4).
-  - Redis hot caching and working memory ring buffers remain future milestones (Milestone 1E.4 / 1E.5).
 
-### 13.3 Subsystem Roadmap
+### 13.3 Working Memory & Redis Foundation Architecture (1E.4)
+- **Working Memory Purpose**: Represents fast, temporary, session-oriented state required for EVA's active reasoning and current context (e.g. active goals, working plan buffers, intermediate tool outputs, recent focus).
+- **Distinction from PostgreSQL**:
+  - PostgreSQL is the durable, persistent system of record storing long-term `MemoryRecord` entries across restarts.
+  - Redis Working Memory stores ephemeral `WorkingMemoryEntry` models with TTL-based expiration and does NOT replace PostgreSQL.
+- **Redis Role**:
+  - Ephemeral state storage engine using `redis.asyncio` with connection pooling (`RedisConnectionManager`).
+  - Key construction pattern: `<prefix>:<session_id>:<namespace>:<key>`.
+  - Cursor-based non-blocking scanning (`scan_iter`) and batched pipelined deletion for session clearing without destructive `FLUSHDB`/`FLUSHALL` commands.
+- **TTL & Expiration Semantics**:
+  - Optional `ttl_seconds` per entry mapped to native Redis expiration (`ex=...`).
+  - Explicit TTL updates via `set_ttl(session_id, key, ttl_seconds)`.
+  - Semantics: Positive TTL sets expiration; `ttl_seconds=0` expires entry immediately; `ttl_seconds=None` or negative clears expiration making the entry persistent in working memory.
+  - In-memory repository simulates TTL with UTC timestamp checks and active pruning during reads and scans.
+- **Session & Namespace Isolation**:
+  - Multi-dimensional isolation: every entry is keyed by `(session_id, namespace, key)` with a default namespace of `"default"`.
+  - `clear_session(session_id, namespace=None)` purges only the target session's keys, optionally restricted to a specific namespace, leaving all other sessions and global state untouched.
+- **Serialization Strategy**:
+  - Safe, deterministic JSON serialization (`serialize_entry` / `deserialize_entry`).
+  - Strict validation of JSON-compatible primitives (`str`, `int`, `float`, `bool`, `None`, `list`, `dict`).
+  - Arbitrary Python code execution or pickle serialization is strictly prohibited.
+- **Availability & Resilience**:
+  - Managed connection pooling with configurable `socket_timeout`, `socket_connect_timeout`, and `max_connections`.
+  - Safe password redaction via `masked_url`.
+  - Redis remains completely optional for baseline EVA startup; in-memory fallback is used during offline development and testing.
+- **Current Scope Boundaries & Limitations**:
+  - Working memory is not yet wired into the `CognitiveEngine` or runtime loop (reserved for subsequent integration milestone).
+  - Dense vector embeddings, pgvector, and long-term memory retrieval remain separate future milestones.
+
+### 13.4 Subsystem Roadmap
 
 | Milestone | Scope | Deliverables | Status |
 |---|---|---|---|
 | **1E.1** | **Memory Specification** | Authoritative architecture, data models, storage definitions, and lifecycle contracts (`docs/MEMORY_SPEC.md`). | COMPLETE |
 | **1E.2** | **Memory Data Models & In-Memory Store** | Typed Pydantic models in `eva/memory/models.py`, in-memory repository for zero-dependency local testing. | COMPLETE |
-| **1E.3** *(Current)* | **PostgreSQL Persistent Repository** | Asyncpg connection pooling, migration schema, `PostgreSQLMemoryRepository` implementation. | COMPLETE |
-| **1E.4** | **Vector Search with pgvector** | Embedding generation via `ModelProvider`, HNSW index setup, hybrid retrieval pipeline. | Planned |
-| **1E.5** | **Cognitive Engine Memory Integration** | Integration of `MemoryManager` into `CognitiveEngine` for prompt injection and experience capture. | Planned |
+| **1E.3** | **PostgreSQL Persistent Repository** | Asyncpg connection pooling, migration schema, `PostgreSQLMemoryRepository` implementation. | COMPLETE |
+| **1E.4** *(Current)* | **Working Memory & Redis Foundation** | Typed `WorkingMemoryEntry`, `WorkingMemoryRepository` protocol, `InMemoryWorkingMemoryRepository`, `RedisWorkingMemoryRepository`, TTL lifecycle, session/namespace isolation. | COMPLETE |
+| **1E.5** | **Vector Search with pgvector** | Embedding generation via `ModelProvider`, HNSW index setup, hybrid retrieval pipeline. | Planned |
+| **1E.6** | **Cognitive Engine Memory Integration** | Integration of `MemoryManager` into `CognitiveEngine` for prompt injection and experience capture. | Planned |
