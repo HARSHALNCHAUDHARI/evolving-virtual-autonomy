@@ -16,7 +16,7 @@ from eva.core.enums import EVAStatus
 from eva.core.models import EVAState
 from eva.core.self_model import EVASelfModel
 from eva.logging import get_logger, setup_logging
-from eva.providers import ModelProvider
+from eva.providers import ModelProvider, ModelRouter
 from eva.providers.mock import MockProvider
 from eva.safety import SafetyPolicy
 
@@ -27,7 +27,7 @@ class EVARuntime:
     """Manages the full lifecycle of the EVA system.
 
     Initializes configuration, logging, context, self-model,
-    provider, safety, and cognitive engine subsystems.
+    provider, safety, model router, and cognitive engine subsystems.
     Provides start/stop lifecycle and state access.
     """
 
@@ -37,6 +37,7 @@ class EVARuntime:
         self._context = ContextManager()
         self._safety = SafetyPolicy()
         self._provider: ModelProvider | None = None
+        self._router: ModelRouter | None = None
         self._cognitive_engine: CognitiveEngine | None = None
 
     @property
@@ -66,6 +67,13 @@ class EVARuntime:
         return self._provider
 
     @property
+    def router(self) -> ModelRouter:
+        """Return the model router. Requires start() to have been called."""
+        if self._router is None:
+            raise RuntimeError("EVA runtime has not been started. Call start() first.")
+        return self._router
+
+    @property
     def cognitive_engine(self) -> CognitiveEngine:
         """Return the cognitive engine. Requires start() to have been called."""
         if self._cognitive_engine is None:
@@ -81,15 +89,23 @@ class EVARuntime:
         # 2. Status → INITIALIZING
         self._self_model.update_status(EVAStatus.INITIALIZING)
 
-        # 3. Initialize provider
+        # 3. Initialize provider and model router
         self._provider = self._create_provider()
         available = await self._provider.is_available()
         logger.info("Provider '%s' available: %s", self._provider.name, available)
+
+        self._router = ModelRouter(
+            providers={self._provider.name: self._provider},
+            default_provider=self._provider.name,
+            default_model=self._settings.default_model,
+        )
+        logger.info("Model router initialized with default provider '%s'", self._provider.name)
 
         # 4. Initialize cognitive engine
         self._cognitive_engine = CognitiveEngine(
             context_manager=self._context,
             safety=self._safety,
+            model_router=self._router,
         )
         logger.info("Cognitive engine initialized")
 
@@ -112,6 +128,7 @@ class EVARuntime:
         self._self_model.update_status(EVAStatus.SHUTTING_DOWN)
         self._context.reset()
         self._cognitive_engine = None
+        self._router = None
         self._self_model.update_status(EVAStatus.OFFLINE)
         logger.info("EVA shutdown complete.")
 
@@ -131,7 +148,7 @@ class EVARuntime:
 
     def _create_provider(self) -> ModelProvider:
         """Create the appropriate model provider based on configuration."""
-        provider_name = self._settings.model_provider.lower()
+        provider_name = (self._settings.default_provider or self._settings.model_provider).lower()
 
         if provider_name == "mock":
             return MockProvider()

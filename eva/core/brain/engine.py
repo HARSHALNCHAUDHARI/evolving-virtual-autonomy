@@ -8,6 +8,11 @@ via constructor — no stage logic lives in this module.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from eva.providers import ModelRouter
+
 from eva.core.brain.executor import ActionExecutor, SafeActionExecutor
 from eva.core.brain.models import (
     CognitiveResult,
@@ -63,6 +68,7 @@ class CognitiveEngine:
         executor: ActionExecutor | None = None,
         verifier: Verifier | None = None,
         response_generator: ResponseGenerator | None = None,
+        model_router: ModelRouter | None = None,
     ) -> None:
         self._context_manager = context_manager
         self._understanding = understanding or DeterministicUnderstanding()
@@ -73,12 +79,18 @@ class CognitiveEngine:
         self._executor = executor or SafeActionExecutor()
         self._verifier = verifier or DeterministicVerifier()
         self._response_gen = response_generator or DeterministicResponseGenerator()
+        self._model_router = model_router
         logger.debug("CognitiveEngine initialized")
 
     @property
     def goal_manager(self) -> GoalManager:
         """Expose goal manager for external inspection."""
         return self._goal_manager
+
+    @property
+    def model_router(self) -> ModelRouter | None:
+        """Expose model router if configured."""
+        return self._model_router
 
     async def process(
         self,

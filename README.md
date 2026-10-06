@@ -6,9 +6,16 @@
 
 ## Current Milestone
 
-**Milestone 1A — Repository & Foundation**
+**Milestone 1C — Model Intelligence Foundation**
 
-EVA is in its earliest development phase. The foundation provides clean project structure, configuration management, domain models, context tracking, safety boundaries, and a minimal interactive CLI.
+EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), and a provider-neutral model intelligence architecture (1C).
+
+The model intelligence foundation establishes:
+- **Provider Abstraction** — Asynchronous `ModelProvider` contract supporting text and structured output generation.
+- **Model Router** — Deterministic `ModelRouter` mapping tasks (`conversation`, `understanding`, `reasoning`, `structured_output`) to provider instances.
+- **Provider-Neutral Models** — Strongly-typed `ModelRequest`, `ModelResponse`, `ModelUsage`, and `ModelMetadata`.
+- **Mock Provider** — Deterministic local provider requiring zero network access or API keys.
+- **Future Extension Points** — Clean integration points for OpenAI, Gemini, Claude, and local models without core redesign.
 
 ---
 
@@ -96,10 +103,12 @@ Edit `.env` to configure EVA. All settings have sensible defaults:
 | `EVA_ENV` | `development` | Environment (development/testing/production) |
 | `EVA_LOG_LEVEL` | `INFO` | Logging level |
 | `EVA_DEBUG` | `false` | Enable debug mode |
-| `EVA_MODEL_PROVIDER` | `mock` | AI model provider |
-| `EVA_MODEL_NAME` | `mock-v1` | Model identifier |
+| `EVA_DEFAULT_PROVIDER` | `mock` | Default AI model provider |
+| `EVA_DEFAULT_MODEL` | `mock-v1` | Default model identifier |
+| `EVA_MODEL_PROVIDER` | `mock` | AI model provider (alias) |
+| `EVA_MODEL_NAME` | `mock-v1` | Model identifier (alias) |
 
-No API keys, databases, or external services are required for Milestone 1A.
+No API keys, databases, or external services are required for Milestone 1C.
 
 ---
 

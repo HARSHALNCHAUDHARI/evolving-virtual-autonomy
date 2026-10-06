@@ -10,6 +10,7 @@ from __future__ import annotations
 from enum import Enum
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,9 +48,25 @@ class EVASettings(BaseSettings):
     # Redis (optional — not required for Milestone 1A)
     redis_url: str | None = None
 
-    # Model provider
+    # Model provider & router defaults
     model_provider: str = "mock"
     model_name: str = "mock-v1"
+    default_provider: str = "mock"
+    default_model: str = "mock-v1"
+
+    @model_validator(mode="after")
+    def _sync_provider_defaults(self) -> EVASettings:
+        """Keep model_provider/name and default_provider/model in sync."""
+        if self.default_provider != "mock" and self.model_provider == "mock":
+            self.model_provider = self.default_provider
+        elif self.model_provider != "mock" and self.default_provider == "mock":
+            self.default_provider = self.model_provider
+
+        if self.default_model != "mock-v1" and self.model_name == "mock-v1":
+            self.model_name = self.default_model
+        elif self.model_name != "mock-v1" and self.default_model == "mock-v1":
+            self.default_model = self.model_name
+        return self
 
     # API keys (never logged, never committed)
     openai_api_key: str | None = None
