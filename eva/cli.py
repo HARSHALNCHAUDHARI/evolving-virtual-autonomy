@@ -1,8 +1,8 @@
 """EVA CLI — interactive command-line interface.
 
-Provides a minimal interactive loop for Milestone 1A.
-Uses the mock provider for responses when no real provider
-is configured.
+Provides an interactive loop that routes all user input through
+the cognitive pipeline. The CLI is responsible only for I/O —
+no cognitive logic lives here.
 """
 
 from __future__ import annotations
@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import sys
 
-from eva.core.enums import EVAStatus
 from eva.logging import get_logger
 from eva.runtime import EVARuntime
 
@@ -34,6 +33,7 @@ def _print_status(runtime: EVARuntime) -> None:
     print(f"  Environment:  {settings.env.value}")
     print(f"  Provider:     {settings.model_provider}")
     print(f"  Mode:         {state.current_mode.value}")
+    print(f"  Cognitive:    ACTIVE")
     print(f"  Safety:       ACTIVE")
     print(f"  Memory:       NOT CONNECTED")
     print(f"  Tools:        NONE")
@@ -63,12 +63,9 @@ async def _interaction_loop(runtime: EVARuntime) -> None:
         if stripped.lower() in ("exit", "quit"):
             break
 
-        # Track conversation turn
-        runtime.context.increment_turn()
-
-        # Generate response via provider
-        response = await runtime.provider.generate(stripped)
-        print(f"\nEVA: {response}\n")
+        # Route through the cognitive pipeline
+        result = await runtime.process_input(stripped)
+        print(f"\nEVA: {result.response}\n")
 
 
 async def run_cli() -> None:
