@@ -6,16 +6,16 @@
 
 ## Current Milestone
 
-**Milestone 1D.3 — Intelligent Model Routing**
+**Milestone 1E.1 — Memory Architecture Specification**
 
-EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), provider-neutral model intelligence architecture (1C), central model registry & capabilities (1D.1), real external AI model provider integration via Google Gemini (1D.2), and a deterministic capability-aware model selection system (1D.3).
+EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), provider-neutral model intelligence architecture (1C), central model registry & capabilities (1D.1), real external AI model provider integration via Google Gemini (1D.2), deterministic capability-aware model selection (1D.3), and the formal memory architecture specification (1E.1).
 
-The intelligent model routing system establishes:
-- **Capability-Aware Candidate Filtering** — Hard gating filters candidate models based on required capabilities (e.g. `structured_output`, `vision`, `reasoning`, `long_context`), minimum priority, and privacy preferences (`local_only`) before scoring. Models lacking a required capability are never selected.
-- **Deterministic Multi-Factor Scoring** — Eligible candidates are evaluated across capability matches, preferred provider/model bonuses, task route mappings, priority tiers, latency tiers, cost preferences, and availability bonuses with deterministic tie-breaking.
-- **Robust Candidate Fallback** — When a primary candidate is unavailable, the router automatically selects the next highest-scoring eligible available candidate and records fallback provenance (`fallback_used=True`, `fallback_from=...`), supported both at selection time and execution dispatch time.
-- **Explainable Routing Decisions** — Every routing cycle generates an explainable `RoutingDecision` providing human-readable justifications (`decision.explain()`), score breakdowns, and candidate evaluation histories.
-- **Architectural Boundary Integrity** — The Model Router strictly handles model selection and dispatch for already-defined tasks, ensuring the cognitive core retains full ownership of understanding, reasoning, planning, decisions, and safety.
+The memory architecture specification ([`docs/MEMORY_SPEC.md`](docs/MEMORY_SPEC.md)) establishes:
+- **Hierarchical Memory Taxonomy** — Formal definitions and lifecycle parameters for Working, Session, Episodic, Semantic, Procedural, Preference, and Project Memory.
+- **Canonical Memory Object** — Typed conceptual memory record (`MemoryRecord`) specifying identifiers, confidence, importance, project isolation, provenance lineages, and retention tiers.
+- **Tri-Store Architecture** — Strict separation of concerns between Redis (volatile turns & hot preference cache), PostgreSQL (durable relational record & provenance audit), and pgvector (dense vector embeddings & HNSW indexing).
+- **Hybrid Retrieval Pipeline** — Multi-stage retrieval combining exact keywords (PostgreSQL full-text search via tsvector/tsquery with future BM25 extensions), metadata filters, dense vector similarity, temporal recency decay, and reciprocal rank fusion.
+- **Epistemic Traceability & Privacy Boundaries** — Distinguishing direct user directives/claims from model inferences, enforcing strict project and context isolation, and ensuring immutable safety directive boundaries.
 
 ---
 
