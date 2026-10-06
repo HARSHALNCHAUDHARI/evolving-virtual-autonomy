@@ -68,6 +68,14 @@ class DatabaseMigrationError(DatabaseError):
     """Raised when database migration application or verification fails."""
 
 
+class MemoryRetrievalError(MemoryError):
+    """Raised when memory retrieval operations fail."""
+
+
+class InvalidMemoryQueryError(MemoryRetrievalError):
+    """Raised when query parameters, filters, or boundaries are invalid."""
+
+
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
@@ -249,12 +257,13 @@ class MemoryRecord(BaseModel):
 
 
 class MemoryQuery(BaseModel):
-    """Query criteria for retrieving memory records from a repository.
+    """Query criteria for retrieving and searching memory records.
 
-    Represents the foundation-level filter parameters specified in
-    docs/MEMORY_SPEC.md. Semantic search and ranking are intentionally excluded.
+    Supports keyword/text matching, metadata filtering, temporal filtering,
+    contextual isolation, and pagination parameters.
     """
 
+    query_text: str | None = None
     memory_types: list[MemoryType] | None = None
     project_id: str | None = None
     include_global: bool = True
@@ -268,6 +277,8 @@ class MemoryQuery(BaseModel):
     updated_before: datetime | None = None
     is_archived: bool | None = False
     limit: int | None = Field(default=None, gt=0)
+    offset: int = Field(default=0, ge=0)
+    metadata_filters: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator(
         "created_after",
@@ -279,3 +290,42 @@ class MemoryQuery(BaseModel):
     @classmethod
     def _validate_query_tz(cls, v: datetime | None) -> datetime | None:
         return _ensure_timezone(v)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _map_query_aliases(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "query_text" not in data:
+                if "text" in data:
+                    data["query_text"] = data.pop("text")
+                elif "query" in data:
+                    data["query_text"] = data.pop("query")
+        return data
+
+    @model_validator(mode="after")
+    def _validate_boundaries(self) -> MemoryQuery:
+        if (
+            self.created_after is not None
+            and self.created_before is not None
+            and self.created_after > self.created_before
+        ):
+            raise InvalidMemoryQueryError(
+                f"created_after ({self.created_after}) cannot be later than created_before ({self.created_before})"
+            )
+        if (
+            self.updated_after is not None
+            and self.updated_before is not None
+            and self.updated_after > self.updated_before
+        ):
+            raise InvalidMemoryQueryError(
+                f"updated_after ({self.updated_after}) cannot be later than updated_before ({self.updated_before})"
+            )
+        return self
+
+    @property
+    def text(self) -> str | None:
+        return self.query_text
+
+    @property
+    def query(self) -> str | None:
+        return self.query_text

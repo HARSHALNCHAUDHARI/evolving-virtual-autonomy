@@ -2,7 +2,7 @@
 
 > **Document Version:** 1.0.0
 > **Status:** Authoritative Foundation Specification
-> **Milestone:** 1E.4 — Working Memory and Redis Foundation
+> **Milestone:** 1E.5 — Memory Retrieval Foundation
 > **Target Subsystem:** `eva.memory`
 
 ---
@@ -533,6 +533,7 @@ The Milestone 1E foundation is designed to support the following advanced capabi
 - **1E.2 — Data Models & In-Memory Repository** — COMPLETE: Concrete Pydantic models in `eva/memory/models.py`, `MemoryRepository` protocol in `eva/memory/repository.py`, and `InMemoryMemoryRepository` in `eva/memory/in_memory.py`.
 - **1E.3 — PostgreSQL Persistent Repository** — COMPLETE: PostgreSQL relational persistence layer with asyncpg driver, connection pooling, migrations, and `PostgreSQLMemoryRepository`.
 - **1E.4 — Working Memory and Redis Foundation** — COMPLETE: Ephemeral working memory abstraction, Redis-backed storage with connection pooling, in-memory reference implementation, TTL lifecycle, session/namespace isolation, and safe JSON serialization.
+- **1E.5 — Memory Retrieval Foundation** — COMPLETE: Deterministic memory retrieval foundation, `MemoryRetriever` protocol and `DeterministicMemoryRetriever`, query normalization, keyword/token matching, explainable scoring, deterministic tie-breaking, project/context isolation, and pagination.
 
 ### 13.2 PostgreSQL Relational Persistence Architecture (1E.3)
 - **Role**: Durable system of record providing transactional persistence, relational integrity, and deterministic indexed filtering.
@@ -574,17 +575,53 @@ The Milestone 1E foundation is designed to support the following advanced capabi
   - Managed connection pooling with configurable `socket_timeout`, `socket_connect_timeout`, and `max_connections`.
   - Safe password redaction via `masked_url`.
   - Redis remains completely optional for baseline EVA startup; in-memory fallback is used during offline development and testing.
-- **Current Scope Boundaries & Limitations**:
-  - Working memory is not yet wired into the `CognitiveEngine` or runtime loop (reserved for subsequent integration milestone).
-  - Dense vector embeddings, pgvector, and long-term memory retrieval remain separate future milestones.
 
-### 13.4 Subsystem Roadmap
+### 13.4 Deterministic Memory Retrieval Architecture (1E.5)
+- **Retrieval Pipeline**:
+  - `MemoryRetriever` Protocol and `DeterministicMemoryRetriever` implementation in `eva/memory/retrieval/`.
+  - Stages: Query Validation → Candidate Retrieval from repository → Structured Metadata Filtering → Text Matching & Token Overlap → Deterministic Scoring → Stable Tie-Breaking → Global Pagination (`limit`, `offset`).
+- **Query Model (`MemoryQuery`)**:
+  - Supports keyword/text search (`query_text`, with `text`/`query` aliases).
+  - Hard constraint filters: `memory_types`, `project_id`, `include_global`, `session_id`, `sources`, `min_confidence`, `min_importance`, `is_archived`.
+  - Temporal boundary filtering: `created_after`, `created_before`, `updated_after`, `updated_before` with strict ordering validation.
+  - Pagination controls: `offset` (default 0), `limit` (positive integer).
+  - Metadata payload matching: `metadata_filters` against `record.structured_payload`.
+- **Retrieval Result Models**:
+  - `MemorySearchResult`: Contains the retrieved `MemoryRecord`, a bounded composite `score` in $[0.0, 1.0]$, and an explainable `MatchExplanation`.
+  - `MatchExplanation`: Detailed match rationale including `exact_phrase_matched`, `matched_tokens`, `token_overlap_ratio`, individual sub-scores (`text_score`, `importance_score`, `confidence_score`, `recency_score`), and human-readable `reasons`.
+  - `MemorySearchResponse`: Result set container with `total_candidates`, iterable `results`, and original `query`.
+- **Deterministic Scoring Formula**:
+  - **Text Queries** (when `query_text` is non-empty):
+    $$Score(m, q) = 0.60 \cdot S_{text}(m, q) + 0.20 \cdot m.importance + 0.10 \cdot R_{recency}(m) + 0.10 \cdot m.confidence$$
+    where $S_{text} = 0.60 \cdot \text{token\_overlap\_ratio} + 0.40 \cdot \text{exact\_phrase\_matched}$. Records with zero token overlap and no phrase match are strictly excluded from results.
+  - **Metadata-Only Queries** (when `query_text` is omitted/empty):
+    $$Score(m, q) = 0.50 \cdot m.importance + 0.30 \cdot R_{recency}(m) + 0.20 \cdot m.confidence$$
+  - **Recency Decay**:
+    $$R_{recency}(m) = e^{-\lambda \cdot \Delta t}$$
+    where $\Delta t$ is elapsed days since `updated_at`, and $\lambda = 0.01$ (or $0.0$ for immutable memories where $R = 1.0$).
+- **Deterministic Tie-Breaking Order**:
+  When two memories receive identical scores, stable ordering is guaranteed via:
+  1. Score descending
+  2. Importance descending
+  3. `updated_at` timestamp descending
+  4. `created_at` timestamp descending
+  5. `memory_id` string representation ascending
+- **Context & Project Isolation**:
+  - Project-scoped queries (`project_id="eva"`, `include_global=True`) return project memories and global memories, while strictly excluding all memories belonging to other projects.
+  - Strict project queries (`include_global=False`) return only project memories.
+  - Session-scoped queries return only memories matching the specified `session_id`.
+- **Scope Boundaries & Limitations**:
+  - Milestone 1E.5 implements **deterministic keyword/metadata retrieval only**.
+  - Dense vector embeddings, pgvector HNSW indexing, and LLM re-ranking are NOT implemented in 1E.5 and remain future milestones.
+
+### 13.5 Subsystem Roadmap
 
 | Milestone | Scope | Deliverables | Status |
 |---|---|---|---|
 | **1E.1** | **Memory Specification** | Authoritative architecture, data models, storage definitions, and lifecycle contracts (`docs/MEMORY_SPEC.md`). | COMPLETE |
 | **1E.2** | **Memory Data Models & In-Memory Store** | Typed Pydantic models in `eva/memory/models.py`, in-memory repository for zero-dependency local testing. | COMPLETE |
 | **1E.3** | **PostgreSQL Persistent Repository** | Asyncpg connection pooling, migration schema, `PostgreSQLMemoryRepository` implementation. | COMPLETE |
-| **1E.4** *(Current)* | **Working Memory & Redis Foundation** | Typed `WorkingMemoryEntry`, `WorkingMemoryRepository` protocol, `InMemoryWorkingMemoryRepository`, `RedisWorkingMemoryRepository`, TTL lifecycle, session/namespace isolation. | COMPLETE |
-| **1E.5** | **Vector Search with pgvector** | Embedding generation via `ModelProvider`, HNSW index setup, hybrid retrieval pipeline. | Planned |
-| **1E.6** | **Cognitive Engine Memory Integration** | Integration of `MemoryManager` into `CognitiveEngine` for prompt injection and experience capture. | Planned |
+| **1E.4** | **Working Memory & Redis Foundation** | Typed `WorkingMemoryEntry`, `WorkingMemoryRepository` protocol, `InMemoryWorkingMemoryRepository`, `RedisWorkingMemoryRepository`, TTL lifecycle, session/namespace isolation. | COMPLETE |
+| **1E.5** *(Current)* | **Memory Retrieval Foundation** | `MemoryRetriever` protocol, `DeterministicMemoryRetriever`, keyword/token matching, explainable scoring, deterministic tie-breaking, project/session isolation, pagination. | COMPLETE |
+| **1E.6** | **Vector Search with pgvector** | Embedding generation via `ModelProvider`, HNSW index setup, hybrid retrieval pipeline. | Planned |
+| **1E.7** | **Cognitive Engine Memory Integration** | Integration of `MemoryManager` into `CognitiveEngine` for prompt injection and experience capture. | Planned |

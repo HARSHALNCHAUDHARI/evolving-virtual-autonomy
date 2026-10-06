@@ -6,18 +6,18 @@
 
 ## Current Milestone
 
-**Milestone 1E.4 — Working Memory and Redis Foundation**
+**Milestone 1E.5 — Memory Retrieval Foundation**
 
-EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), provider-neutral model intelligence architecture (1C), central model registry & capabilities (1D.1), real external AI model provider integration via Google Gemini (1D.2), deterministic capability-aware model selection (1D.3), the formal memory architecture specification (1E.1), memory data models with an in-memory repository (1E.2), a production-oriented PostgreSQL persistent repository (1E.3), and an ephemeral Redis-backed working memory layer (1E.4).
+EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), provider-neutral model intelligence architecture (1C), central model registry & capabilities (1D.1), real external AI model provider integration via Google Gemini (1D.2), deterministic capability-aware model selection (1D.3), the formal memory architecture specification (1E.1), memory data models with an in-memory repository (1E.2), a production-oriented PostgreSQL persistent repository (1E.3), an ephemeral Redis-backed working memory layer (1E.4), and a deterministic memory retrieval foundation (1E.5).
 
 The memory subsystem establishes:
 - **Persistent Memory (PostgreSQL)** — `PostgreSQLMemoryRepository` implementing the canonical `MemoryRepository` contract with transactional CRUD, connection pooling (`asyncpg`), and deterministic indexed queries.
 - **Working Memory Layer (Redis)** — `RedisWorkingMemoryRepository` implementing the `WorkingMemoryRepository` contract for ephemeral, fast, session-scoped working context.
-- **Session & Namespace Isolation** — Structured keys (`<prefix>:<session_id>:<namespace>:<key>`), wildcard pattern scanning, and safe scoped deletion (`clear_session`) without destructive database flush commands.
-- **TTL / Expiration Lifecycle** — Native Redis key expiration (`ex=...`), explicit TTL management (`set_ttl`), zero/negative TTL expiration handling, and UTC in-memory simulation.
-- **Safe JSON Serialization** — Strict serialization and deserialization of JSON-compatible primitives, rejecting unsafe arbitrary Python object execution.
-- **In-Memory Reference Implementation** — `InMemoryWorkingMemoryRepository` providing zero-dependency local testing and contract parity with the Redis implementation.
-- **Fault-Tolerant Configuration** — Typed `RedisConfig` supporting `EVA_REDIS_URL`, connection pooling, credential redaction in logs (`masked_url`), and optional startup behavior where EVA functions seamlessly without an active Redis server.
+- **Deterministic Memory Retrieval** — `DeterministicMemoryRetriever` implementing the `MemoryRetriever` contract for multi-criteria candidate retrieval, token matching, exact phrase bonuses, and global pagination.
+- **Explainable Ranking & Scoring** — Deterministic composite scoring combining text overlap, intrinsic importance, confidence priors, and exponential recency decay ($R = e^{-\lambda \Delta t}$) with detailed `MatchExplanation` breakdowns.
+- **Deterministic Tie-Breaking** — Strict multi-tier ordering (`score` desc → `importance` desc → `updated_at` desc → `created_at` desc → `memory_id` asc).
+- **Context & Project Isolation** — Sandboxed retrieval respecting workspace boundaries, session isolation, and global knowledge inheritance.
+- **Zero-Dependency Reference Retrievability** — Fully testable offline against `InMemoryMemoryRepository` without requiring live databases, vector models, or LLM inference.
 
 ---
 
