@@ -526,12 +526,22 @@ The Milestone 1E foundation is designed to support the following advanced capabi
 
 ---
 
-## 13. Summary & Roadmap Alignment
+## 13. Implementation Status & Roadmap Alignment
 
-| Milestone | Scope | Deliverables |
-|---|---|---|
-| **1E.1** *(Current)* | **Memory Specification** | Authoritative architecture, data models, storage definitions, and lifecycle contracts (`docs/MEMORY_SPEC.md`). |
-| **1E.2** | **Memory Data Models & In-Memory Store** | Typed Pydantic models in `eva/memory/models.py`, in-memory repository for zero-dependency local testing. |
-| **1E.3** | **Relational Storage & Redis Integration** | PostgreSQL schema migration, Redis session/working memory cache. |
-| **1E.4** | **Vector Search with pgvector** | Embedding generation via `ModelProvider`, HNSW index setup, hybrid retrieval pipeline. |
-| **1E.5** | **Cognitive Engine Memory Integration** | Integration of `MemoryManager` into `CognitiveEngine` for prompt injection and experience capture. |
+### 13.1 Milestone Implementation Status
+- **1E.1 — Architecture Specification** — COMPLETE: Authoritative architecture, data models, storage definitions, and lifecycle contracts defined in `docs/MEMORY_SPEC.md`.
+- **1E.2 — Data Models & In-Memory Repository** — COMPLETE: Concrete Pydantic models in `eva/memory/models.py`, `MemoryRepository` protocol in `eva/memory/repository.py`, and `InMemoryMemoryRepository` in `eva/memory/in_memory.py`.
+- **Status Notes**:
+  - In-memory storage exists for zero-dependency contract validation, local development, and offline testing.
+  - Production persistence does not yet exist.
+  - PostgreSQL, pgvector, and Redis remain future milestones (1E.3, 1E.4).
+
+### 13.2 Subsystem Roadmap
+
+| Milestone | Scope | Deliverables | Status |
+|---|---|---|---|
+| **1E.1** | **Memory Specification** | Authoritative architecture, data models, storage definitions, and lifecycle contracts (`docs/MEMORY_SPEC.md`). | COMPLETE |
+| **1E.2** *(Current)* | **Memory Data Models & In-Memory Store** | Typed Pydantic models in `eva/memory/models.py`, in-memory repository for zero-dependency local testing. | COMPLETE |
+| **1E.3** | **Relational Storage & Redis Integration** | PostgreSQL schema migration, Redis session/working memory cache. | Planned |
+| **1E.4** | **Vector Search with pgvector** | Embedding generation via `ModelProvider`, HNSW index setup, hybrid retrieval pipeline. | Planned |
+| **1E.5** | **Cognitive Engine Memory Integration** | Integration of `MemoryManager` into `CognitiveEngine` for prompt injection and experience capture. | Planned |

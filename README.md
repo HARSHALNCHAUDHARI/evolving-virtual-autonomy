@@ -6,16 +6,15 @@
 
 ## Current Milestone
 
-**Milestone 1E.1 — Memory Architecture Specification**
+**Milestone 1E.2 — Memory Data Models & In-Memory Repository**
 
-EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), provider-neutral model intelligence architecture (1C), central model registry & capabilities (1D.1), real external AI model provider integration via Google Gemini (1D.2), deterministic capability-aware model selection (1D.3), and the formal memory architecture specification (1E.1).
+EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), provider-neutral model intelligence architecture (1C), central model registry & capabilities (1D.1), real external AI model provider integration via Google Gemini (1D.2), deterministic capability-aware model selection (1D.3), the formal memory architecture specification (1E.1), and memory data models with an in-memory repository (1E.2).
 
-The memory architecture specification ([`docs/MEMORY_SPEC.md`](docs/MEMORY_SPEC.md)) establishes:
-- **Hierarchical Memory Taxonomy** — Formal definitions and lifecycle parameters for Working, Session, Episodic, Semantic, Procedural, Preference, and Project Memory.
-- **Canonical Memory Object** — Typed conceptual memory record (`MemoryRecord`) specifying identifiers, confidence, importance, project isolation, provenance lineages, and retention tiers.
-- **Tri-Store Architecture** — Strict separation of concerns between Redis (volatile turns & hot preference cache), PostgreSQL (durable relational record & provenance audit), and pgvector (dense vector embeddings & HNSW indexing).
-- **Hybrid Retrieval Pipeline** — Multi-stage retrieval combining exact keywords (PostgreSQL full-text search via tsvector/tsquery with future BM25 extensions), metadata filters, dense vector similarity, temporal recency decay, and reciprocal rank fusion.
-- **Epistemic Traceability & Privacy Boundaries** — Distinguishing direct user directives/claims from model inferences, enforcing strict project and context isolation, and ensuring immutable safety directive boundaries.
+The memory subsystem establishes:
+- **Canonical Memory Models** — Concrete Pydantic records (`MemoryRecord`, `ProvenanceRecord`, `AccessMetadata`, `RetentionMetadata`, `EmbeddingReference`) implementing the authoritative memory hierarchy.
+- **Hierarchical Memory Taxonomy** — Strict cognitive tiers (`Working`, `Session`, `Episodic`, `Semantic`, `Procedural`, `Preference`, `ProjectContext`) preserving epistemic distinctions between observed facts and inferred hypotheses.
+- **Storage-Agnostic Contract** — `MemoryRepository` protocol defining asynchronous persistence, retrieval, mutation, deletion, and deterministic filtering.
+- **In-Memory Development Repository** — `InMemoryMemoryRepository` providing zero-dependency local testing, mutation safety, project sandboxing, and deterministic querying prior to PostgreSQL/Redis integration.
 
 ---
 
