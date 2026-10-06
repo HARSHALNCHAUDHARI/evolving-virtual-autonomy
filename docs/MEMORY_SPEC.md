@@ -1,8 +1,8 @@
 # EVA Memory Subsystem Specification
 
-> **Document Version:** 1.0.0
+> **Document Version:** 1.1.0
 > **Status:** Authoritative Foundation Specification
-> **Milestone:** 1E.5 — Memory Retrieval Foundation
+> **Milestone:** 1E.6 — Semantic Memory Retrieval with pgvector
 > **Target Subsystem:** `eva.memory`
 
 ---
@@ -614,7 +614,57 @@ The Milestone 1E foundation is designed to support the following advanced capabi
   - Milestone 1E.5 implements **deterministic keyword/metadata retrieval only**.
   - Dense vector embeddings, pgvector HNSW indexing, and LLM re-ranking are NOT implemented in 1E.5 and remain future milestones.
 
-### 13.5 Subsystem Roadmap
+### 13.5 Semantic Memory Retrieval with pgvector Architecture (1E.6)
+- **Architectural Overview**:
+  - Extends EVA's retrieval system with dense vector semantic search without replacing or altering deterministic retrieval.
+  - Three distinct retrieval modalities:
+    1. **Deterministic Retrieval (`DeterministicMemoryRetriever`)**: Pure token overlap, exact phrase match, and metadata filtering.
+    2. **Semantic Retrieval (`SemanticMemoryRetriever`)**: Cosine vector similarity against query embeddings via `pgvector` or in-memory vector dot-products.
+    3. **Hybrid Retrieval (`HybridMemoryRetriever`)**: Fused multi-channel retrieval balancing semantic similarity, keyword overlap, importance, recency, and confidence.
+- **Provider-Neutral Embedding Abstraction**:
+  - Architecture in `eva/memory/embeddings/`:
+    - `EmbeddingProvider` protocol defining async `embed(EmbeddingRequest) -> EmbeddingResponse` and `is_available()`.
+    - Typed contracts: `EmbeddingRequest`, `EmbeddingResponse`, `EmbeddingResult`, `EmbeddingError`, `EmbeddingProviderError`, `EmbeddingDimensionMismatchError`.
+    - Completely decoupled from external vendor SDKs (OpenAI, Gemini, etc.).
+- **Deterministic Mock Provider (`MockEmbeddingProvider`)**:
+  - Deterministic pseudo-random Gaussian vector generator seeded by SHA-256 hash of normalized text.
+  - Generates unit-norm vectors ($\|v\|_2 = 1.0$) with configurable dimensionality (default 1536).
+  - Reproducible offline testing with zero network dependencies.
+  - Supports preset vector dictionaries for exact test fixtures.
+- **Dedicated Embedding Service (`EmbeddingService`)**:
+  - Single point of responsibility for vector generation, input text normalization (collapsing whitespace and lowercasing), dimension validation, and memory record embedding attachment (`attach_embedding`).
+  - Strict separation of concerns: Repository handles persistence; Embedding Service handles vectorization; Retrievers handle ranking and search.
+- **PostgreSQL pgvector Integration**:
+  - Migration `002_add_pgvector_embeddings.sql` introduces `CREATE EXTENSION IF NOT EXISTS vector;` and adds `embedding vector` column to `memory_records`.
+  - Reversible via `002_add_pgvector_embeddings_down.sql`.
+  - Preserves all existing memory records and schemas.
+  - Dimension-agnostic column definition supports configurable embedding models without table recreations.
+  - `PostgreSQLMemoryRepository.search_vector` executes similarity search directly in SQL using pgvector's cosine distance operator (`<=>`).
+- **Mathematical Similarity Metric**:
+  - Metric: Cosine similarity $S_{semantic} \in [0.0, 1.0]$, where higher score indicates greater semantic similarity.
+  - pgvector calculation: `1 - (embedding <=> query_vector::vector)`.
+  - Python in-memory calculation: $\max\left(0.0, \min\left(1.0, \frac{u \cdot v}{\|u\|_2 \|v\|_2}\right)\right)$.
+- **Project & Session Isolation**:
+  - Isolation criteria (`project_id`, `include_global`, `session_id`) are applied directly in SQL WHERE clauses in `search_vector`.
+  - In-memory fallback enforces the same boundaries before similarity ranking.
+- **Hybrid Scoring Formula**:
+  $$Score(m, q) = w_{sem} \cdot S_{semantic} + w_{kw} \cdot S_{keyword} + w_{imp} \cdot m.importance + w_{rec} \cdot R_{recency} + w_{conf} \cdot m.confidence$$
+  - Default weights:
+    - $w_{sem} = 0.45$ (Semantic vector similarity)
+    - $w_{kw} = 0.25$ (Deterministic keyword / token score)
+    - $w_{imp} = 0.15$ (Intrinsic memory record importance)
+    - $w_{rec} = 0.10$ (Temporal exponential decay factor)
+    - $w_{conf} = 0.05$ (Source / epistemic confidence)
+    - Sum of weights $= 1.00$ (enforced by `HybridWeights` validator).
+  - Deterministic tie-breaking: Score DESC, Importance DESC, `updated_at` DESC, `created_at` DESC, `memory_id` ASC.
+- **Fallback & Resilience**:
+  - Graceful degradation: If embedding provider or pgvector is unavailable, `HybridMemoryRetriever` falls back to deterministic retrieval with an explanation note unless configured to raise.
+  - Records lacking embedding vectors are skipped by semantic retrieval rather than causing errors.
+- **Configuration**:
+  - Environment variables: `EVA_EMBEDDING_PROVIDER`, `EVA_EMBEDDING_MODEL`, `EVA_EMBEDDING_DIMENSION`, `EVA_SEMANTIC_SIMILARITY_THRESHOLD`, `EVA_HYBRID_*_WEIGHT`.
+  - Typed integration in `eva.config.Settings`.
+
+### 13.6 Subsystem Roadmap
 
 | Milestone | Scope | Deliverables | Status |
 |---|---|---|---|
@@ -622,6 +672,6 @@ The Milestone 1E foundation is designed to support the following advanced capabi
 | **1E.2** | **Memory Data Models & In-Memory Store** | Typed Pydantic models in `eva/memory/models.py`, in-memory repository for zero-dependency local testing. | COMPLETE |
 | **1E.3** | **PostgreSQL Persistent Repository** | Asyncpg connection pooling, migration schema, `PostgreSQLMemoryRepository` implementation. | COMPLETE |
 | **1E.4** | **Working Memory & Redis Foundation** | Typed `WorkingMemoryEntry`, `WorkingMemoryRepository` protocol, `InMemoryWorkingMemoryRepository`, `RedisWorkingMemoryRepository`, TTL lifecycle, session/namespace isolation. | COMPLETE |
-| **1E.5** *(Current)* | **Memory Retrieval Foundation** | `MemoryRetriever` protocol, `DeterministicMemoryRetriever`, keyword/token matching, explainable scoring, deterministic tie-breaking, project/session isolation, pagination. | COMPLETE |
-| **1E.6** | **Vector Search with pgvector** | Embedding generation via `ModelProvider`, HNSW index setup, hybrid retrieval pipeline. | Planned |
+| **1E.5** | **Memory Retrieval Foundation** | `MemoryRetriever` protocol, `DeterministicMemoryRetriever`, keyword/token matching, explainable scoring, deterministic tie-breaking, project/session isolation, pagination. | COMPLETE |
+| **1E.6** *(Current)* | **Vector Search with pgvector** | Embedding abstraction, deterministic MockEmbeddingProvider, EmbeddingService, pgvector migrations & search, SemanticMemoryRetriever, HybridMemoryRetriever. | COMPLETE |
 | **1E.7** | **Cognitive Engine Memory Integration** | Integration of `MemoryManager` into `CognitiveEngine` for prompt injection and experience capture. | Planned |

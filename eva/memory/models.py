@@ -176,6 +176,10 @@ class EmbeddingReference(BaseModel):
     vector_id: str | None = None
     version: int = Field(default=1, ge=1)
 
+    @property
+    def model_name(self) -> str:
+        return self.model
+
 
 class AccessMetadata(BaseModel):
     """Access telemetry and recency decay metadata."""
@@ -228,6 +232,7 @@ class MemoryRecord(BaseModel):
     project_id: str | None = None
     session_id: str | None = None
     embedding_ref: EmbeddingReference | None = None
+    embedding: list[float] | None = None
     access_metadata: AccessMetadata = Field(default_factory=AccessMetadata)
     retention_metadata: RetentionMetadata = Field(default_factory=RetentionMetadata)
 

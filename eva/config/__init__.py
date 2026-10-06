@@ -56,6 +56,17 @@ class EVASettings(BaseSettings):
     redis_key_prefix: str = "eva:working"
     redis_default_ttl_seconds: int | None = None
 
+    # Embeddings & Semantic Retrieval (Milestone 1E.6)
+    embedding_provider: str = "mock"
+    embedding_model: str = "mock-embedding-v1"
+    embedding_dimension: int = 768
+    semantic_similarity_threshold: float = 0.0
+    hybrid_semantic_weight: float = 0.45
+    hybrid_keyword_weight: float = 0.25
+    hybrid_importance_weight: float = 0.15
+    hybrid_recency_weight: float = 0.10
+    hybrid_confidence_weight: float = 0.05
+
     @model_validator(mode="after")
     def _sync_database_settings(self) -> EVASettings:
         """Sync database_url and postgres_dsn if either is set."""

@@ -16,6 +16,8 @@ class MatchExplanation(BaseModel):
     matched_tokens: list[str] = Field(default_factory=list)
     token_overlap_ratio: float = 0.0
     text_score: float = 0.0
+    semantic_similarity: float = 0.0
+    semantic_score: float = 0.0
     importance_score: float = 0.0
     confidence_score: float = 0.0
     recency_score: float = 0.0

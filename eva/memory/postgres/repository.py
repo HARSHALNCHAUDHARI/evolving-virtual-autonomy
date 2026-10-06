@@ -76,6 +76,16 @@ def _deserialize_row(row: asyncpg.Record | dict[str, Any]) -> MemoryRecord:
     if not isinstance(memory_id, UUID):
         memory_id = UUID(str(memory_id))
 
+    embedding = None
+    emb_vec = r.get("embedding")
+    if emb_vec is not None:
+        if isinstance(emb_vec, (list, tuple)):
+            embedding = [float(x) for x in emb_vec]
+        elif isinstance(emb_vec, str):
+            clean = emb_vec.strip("[]() ")
+            if clean:
+                embedding = [float(x.strip()) for x in clean.split(",") if x.strip()]
+
     return MemoryRecord(
         memory_id=memory_id,
         memory_type=MemoryType(r["memory_type"]),
@@ -91,6 +101,7 @@ def _deserialize_row(row: asyncpg.Record | dict[str, Any]) -> MemoryRecord:
         project_id=r.get("project_id"),
         session_id=r.get("session_id"),
         embedding_ref=embedding_ref,
+        embedding=embedding,
         access_metadata=access_metadata,
         retention_metadata=retention_metadata,
     )
@@ -173,6 +184,27 @@ class PostgreSQLMemoryRepository(MemoryRepository):
             else None
         )
 
+        emb_vector_str = (
+            f"[{','.join(str(x) for x in memory.embedding)}]"
+            if memory.embedding is not None
+            else None
+        )
+
+        if emb_vector_str is not None:
+            query = """
+                INSERT INTO memory_records (
+                    memory_id, memory_type, content, structured_payload, source,
+                    confidence, importance, relevance, project_id, session_id,
+                    provenance, embedding_ref, access_metadata, retention_metadata,
+                    created_at, updated_at, embedding
+                ) VALUES (
+                    $1, $2, $3, $4::jsonb, $5,
+                    $6, $7, $8, $9, $10,
+                    $11::jsonb, $12::jsonb, $13::jsonb, $14::jsonb,
+                    $15, $16, $17
+                )
+            """
+
         params = (
             memory.memory_id,
             memory.memory_type.value,
@@ -191,6 +223,9 @@ class PostgreSQLMemoryRepository(MemoryRepository):
             memory.created_at,
             memory.updated_at,
         )
+
+        if emb_vector_str is not None:
+            params = params + (emb_vector_str,)
 
         try:
             async with pool.acquire() as conn:
@@ -286,6 +321,32 @@ class PostgreSQLMemoryRepository(MemoryRepository):
                     if updated.embedding_ref
                     else None
                 )
+                emb_vector_str = (
+                    f"[{','.join(str(x) for x in updated.embedding)}]"
+                    if updated.embedding is not None
+                    else None
+                )
+
+                if emb_vector_str is not None:
+                    update_query = """
+                        UPDATE memory_records SET
+                            memory_type = $2,
+                            content = $3,
+                            structured_payload = $4::jsonb,
+                            source = $5,
+                            confidence = $6,
+                            importance = $7,
+                            relevance = $8,
+                            project_id = $9,
+                            session_id = $10,
+                            provenance = $11::jsonb,
+                            embedding_ref = $12::jsonb,
+                            access_metadata = $13::jsonb,
+                            retention_metadata = $14::jsonb,
+                            updated_at = $15,
+                            embedding = $16
+                        WHERE memory_id = $1
+                    """
 
                 params = (
                     updated.memory_id,
@@ -304,6 +365,9 @@ class PostgreSQLMemoryRepository(MemoryRepository):
                     json.dumps(updated.retention_metadata.model_dump(mode="json")),
                     now,
                 )
+
+                if emb_vector_str is not None:
+                    params = params + (emb_vector_str,)
 
                 await conn.execute(update_query, *params)
                 return updated
@@ -440,3 +504,104 @@ class PostgreSQLMemoryRepository(MemoryRepository):
             val = await conn.fetchval(sql)
 
         return int(val) if val is not None else 0
+
+    async def search_vector(
+        self,
+        query_vector: list[float],
+        query: MemoryQuery,
+        limit: int = 10,
+        similarity_threshold: float = 0.0,
+    ) -> list[tuple[MemoryRecord, float]]:
+        """Perform vector similarity search using pgvector cosine distance.
+
+        Calculates cosine similarity as: 1 - (embedding <=> $1::vector).
+        Filters out records without embeddings and applies all metadata,
+        project, session, and quality filters at the database level.
+
+        Args:
+            query_vector: The dense float embedding vector of the query.
+            query: MemoryQuery containing project, session, and metadata filters.
+            limit: Maximum candidate memories to return.
+            similarity_threshold: Minimum cosine similarity required.
+
+        Returns:
+            List of (MemoryRecord, similarity_score) tuples ordered by
+            similarity descending, then created_at DESC, memory_id ASC.
+        """
+        pool = await self._get_pool()
+        vector_str = f"[{','.join(str(x) for x in query_vector)}]"
+
+        params: list[Any] = [vector_str]
+        clauses: list[str] = ["embedding IS NOT NULL"]
+
+        if similarity_threshold > 0.0:
+            params.append(similarity_threshold)
+            clauses.append(f"(1 - (embedding <=> $1::vector)) >= ${len(params)}")
+
+        if query.memory_types:
+            params.append([m.value for m in query.memory_types])
+            clauses.append(f"memory_type = ANY(${len(params)}::varchar[])")
+
+        if query.project_id is not None:
+            params.append(query.project_id)
+            if query.include_global:
+                clauses.append(f"(project_id = ${len(params)} OR project_id IS NULL)")
+            else:
+                clauses.append(f"project_id = ${len(params)}")
+
+        if query.session_id is not None:
+            params.append(query.session_id)
+            clauses.append(f"session_id = ${len(params)}")
+
+        if query.sources:
+            params.append([s.value for s in query.sources])
+            clauses.append(f"source = ANY(${len(params)}::varchar[])")
+
+        if query.min_confidence is not None:
+            params.append(query.min_confidence)
+            clauses.append(f"confidence >= ${len(params)}")
+
+        if query.min_importance is not None:
+            params.append(query.min_importance)
+            clauses.append(f"importance >= ${len(params)}")
+
+        if query.created_after is not None:
+            params.append(query.created_after)
+            clauses.append(f"created_at >= ${len(params)}")
+
+        if query.created_before is not None:
+            params.append(query.created_before)
+            clauses.append(f"created_at <= ${len(params)}")
+
+        if query.updated_after is not None:
+            params.append(query.updated_after)
+            clauses.append(f"updated_at >= ${len(params)}")
+
+        if query.updated_before is not None:
+            params.append(query.updated_before)
+            clauses.append(f"updated_at <= ${len(params)}")
+
+        if query.is_archived is not None:
+            params.append(query.is_archived)
+            clauses.append(f"((retention_metadata->>'is_archived')::boolean = ${len(params)})")
+
+        where_sql = f"WHERE {' AND '.join(clauses)}"
+        params.append(limit)
+        limit_sql = f"LIMIT ${len(params)}"
+
+        sql = (
+            f"SELECT *, (1 - (embedding <=> $1::vector)) AS similarity "
+            f"FROM memory_records {where_sql} "
+            f"ORDER BY embedding <=> $1::vector ASC, created_at DESC, memory_id ASC {limit_sql}"
+        )
+
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(sql, *params)
+
+        results: list[tuple[MemoryRecord, float]] = []
+        for row in rows:
+            rec = _deserialize_row(row)
+            sim = float(row["similarity"]) if row.get("similarity") is not None else 0.0
+            results.append((rec, sim))
+
+        return results

@@ -22,14 +22,25 @@ from eva.memory.retrieval.ranking import (
     score_memory_record,
     tokenize,
 )
+from eva.memory.retrieval.hybrid import (
+    HybridMemoryRetriever,
+    HybridWeights,
+)
 from eva.memory.retrieval.retriever import (
     DeterministicMemoryRetriever,
     MemoryRetriever,
+)
+from eva.memory.retrieval.semantic import (
+    SemanticMemoryRetriever,
+    compute_cosine_similarity,
 )
 
 __all__ = [
     "MemoryRetriever",
     "DeterministicMemoryRetriever",
+    "SemanticMemoryRetriever",
+    "HybridMemoryRetriever",
+    "HybridWeights",
     "MemorySearchResult",
     "MatchExplanation",
     "MemorySearchResponse",
@@ -38,6 +49,7 @@ __all__ = [
     "normalize_text",
     "tokenize",
     "compute_recency_score",
+    "compute_cosine_similarity",
     "score_memory_record",
     "ranking_sort_key",
 ]

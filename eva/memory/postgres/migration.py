@@ -18,6 +18,17 @@ logger = logging.getLogger(__name__)
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "migrations"
 
 
+MIGRATIONS_UP = [
+    "001_create_memory_records.sql",
+    "002_add_pgvector_embeddings.sql",
+]
+
+MIGRATIONS_DOWN = [
+    "002_add_pgvector_embeddings_down.sql",
+    "001_create_memory_records_down.sql",
+]
+
+
 def get_migration_sql(filename: str) -> str:
     """Read migration SQL script from the migrations directory."""
     filepath = MIGRATIONS_DIR / filename
@@ -27,33 +38,35 @@ def get_migration_sql(filename: str) -> str:
 
 
 async def run_migrations_up(target: asyncpg.Connection | asyncpg.Pool) -> None:
-    """Execute the UP migration (001_create_memory_records.sql)."""
-    sql = get_migration_sql("001_create_memory_records.sql")
-    try:
-        if isinstance(target, asyncpg.Pool):
-            async with target.acquire() as conn:
-                await conn.execute(sql)
-        else:
-            await target.execute(sql)
-        logger.info("Successfully executed memory schema migration UP.")
-    except Exception as exc:
-        logger.error("Failed to execute UP migration: %s", exc)
-        raise DatabaseMigrationError(f"Failed to execute UP migration: {exc}") from exc
+    """Execute all UP migrations in chronological order."""
+    for filename in MIGRATIONS_UP:
+        sql = get_migration_sql(filename)
+        try:
+            if isinstance(target, asyncpg.Pool):
+                async with target.acquire() as conn:
+                    await conn.execute(sql)
+            else:
+                await target.execute(sql)
+            logger.info("Successfully executed migration UP: %s", filename)
+        except Exception as exc:
+            logger.error("Failed to execute UP migration '%s': %s", filename, exc)
+            raise DatabaseMigrationError(f"Failed to execute UP migration '{filename}': {exc}") from exc
 
 
 async def run_migrations_down(target: asyncpg.Connection | asyncpg.Pool) -> None:
-    """Execute the DOWN migration (001_create_memory_records_down.sql)."""
-    sql = get_migration_sql("001_create_memory_records_down.sql")
-    try:
-        if isinstance(target, asyncpg.Pool):
-            async with target.acquire() as conn:
-                await conn.execute(sql)
-        else:
-            await target.execute(sql)
-        logger.info("Successfully executed memory schema migration DOWN.")
-    except Exception as exc:
-        logger.error("Failed to execute DOWN migration: %s", exc)
-        raise DatabaseMigrationError(f"Failed to execute DOWN migration: {exc}") from exc
+    """Execute all DOWN migrations in reverse order."""
+    for filename in MIGRATIONS_DOWN:
+        sql = get_migration_sql(filename)
+        try:
+            if isinstance(target, asyncpg.Pool):
+                async with target.acquire() as conn:
+                    await conn.execute(sql)
+            else:
+                await target.execute(sql)
+            logger.info("Successfully executed migration DOWN: %s", filename)
+        except Exception as exc:
+            logger.error("Failed to execute DOWN migration '%s': %s", filename, exc)
+            raise DatabaseMigrationError(f"Failed to execute DOWN migration '{filename}': {exc}") from exc
 
 
 async def is_table_created(target: asyncpg.Connection | asyncpg.Pool) -> bool:

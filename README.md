@@ -6,18 +6,20 @@
 
 ## Current Milestone
 
-**Milestone 1E.5 — Memory Retrieval Foundation**
+**Milestone 1E.6 — Semantic Memory Retrieval with pgvector**
 
-EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), provider-neutral model intelligence architecture (1C), central model registry & capabilities (1D.1), real external AI model provider integration via Google Gemini (1D.2), deterministic capability-aware model selection (1D.3), the formal memory architecture specification (1E.1), memory data models with an in-memory repository (1E.2), a production-oriented PostgreSQL persistent repository (1E.3), an ephemeral Redis-backed working memory layer (1E.4), and a deterministic memory retrieval foundation (1E.5).
+EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), provider-neutral model intelligence architecture (1C), central model registry & capabilities (1D.1), real external AI model provider integration via Google Gemini (1D.2), deterministic capability-aware model selection (1D.3), the formal memory architecture specification (1E.1), memory data models with an in-memory repository (1E.2), a production-oriented PostgreSQL persistent repository (1E.3), an ephemeral Redis-backed working memory layer (1E.4), a deterministic memory retrieval foundation (1E.5), and semantic vector memory retrieval with pgvector (1E.6).
 
 The memory subsystem establishes:
-- **Persistent Memory (PostgreSQL)** — `PostgreSQLMemoryRepository` implementing the canonical `MemoryRepository` contract with transactional CRUD, connection pooling (`asyncpg`), and deterministic indexed queries.
+- **Persistent Memory (PostgreSQL + pgvector)** — `PostgreSQLMemoryRepository` implementing the canonical `MemoryRepository` contract with transactional CRUD, connection pooling (`asyncpg`), native pgvector cosine similarity search (`<=>`), and migration `002_add_pgvector_embeddings.sql`.
 - **Working Memory Layer (Redis)** — `RedisWorkingMemoryRepository` implementing the `WorkingMemoryRepository` contract for ephemeral, fast, session-scoped working context.
-- **Deterministic Memory Retrieval** — `DeterministicMemoryRetriever` implementing the `MemoryRetriever` contract for multi-criteria candidate retrieval, token matching, exact phrase bonuses, and global pagination.
-- **Explainable Ranking & Scoring** — Deterministic composite scoring combining text overlap, intrinsic importance, confidence priors, and exponential recency decay ($R = e^{-\lambda \Delta t}$) with detailed `MatchExplanation` breakdowns.
-- **Deterministic Tie-Breaking** — Strict multi-tier ordering (`score` desc → `importance` desc → `updated_at` desc → `created_at` desc → `memory_id` asc).
-- **Context & Project Isolation** — Sandboxed retrieval respecting workspace boundaries, session isolation, and global knowledge inheritance.
-- **Zero-Dependency Reference Retrievability** — Fully testable offline against `InMemoryMemoryRepository` without requiring live databases, vector models, or LLM inference.
+- **Provider-Neutral Embedding Abstraction** — Protocol-based `EmbeddingProvider`, `EmbeddingRequest`, and `EmbeddingResponse` decoupled from external vendor SDKs.
+- **Deterministic Mock Embedding Provider** — Offline `MockEmbeddingProvider` generating reproducible unit-norm vectors via SHA-256 seeding with configurable dimensionality.
+- **Dedicated Embedding Service** — `EmbeddingService` responsible for text normalization, dimension validation, and memory record embedding attachment (`attach_embedding`).
+- **Semantic Memory Retrieval** — `SemanticMemoryRetriever` performing cosine similarity search over pgvector in PostgreSQL with offline in-memory fallback.
+- **Hybrid Memory Retrieval** — `HybridMemoryRetriever` combining deterministic keyword overlap, semantic vector similarity, intrinsic importance, temporal recency decay, and epistemic confidence into an explainable, deterministic composite score.
+- **Context & Project Isolation** — Strict workspace boundaries and session isolation enforced directly at database query level and in memory.
+- **Resilience & Graceful Fallback** — Controlled degradation to deterministic retrieval when vector infrastructure or embedding providers are unavailable, without crashing on memories lacking embeddings.
 
 ---
 
