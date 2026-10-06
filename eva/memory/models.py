@@ -52,6 +52,22 @@ class ImmutableMemoryError(MemoryUpdateError):
     """Raised when attempting to modify an immutable or protected memory record."""
 
 
+class DatabaseError(MemoryError):
+    """Base exception for database and persistence errors."""
+
+
+class DatabaseConnectionError(DatabaseError):
+    """Raised when unable to establish or maintain a database connection."""
+
+
+class DatabaseConfigurationError(DatabaseError):
+    """Raised when database configuration is missing, invalid, or malformed."""
+
+
+class DatabaseMigrationError(DatabaseError):
+    """Raised when database migration application or verification fails."""
+
+
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------

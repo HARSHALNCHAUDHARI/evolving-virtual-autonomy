@@ -6,15 +6,15 @@
 
 ## Current Milestone
 
-**Milestone 1E.2 — Memory Data Models & In-Memory Repository**
+**Milestone 1E.3 — PostgreSQL Persistent Memory Repository**
 
-EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), provider-neutral model intelligence architecture (1C), central model registry & capabilities (1D.1), real external AI model provider integration via Google Gemini (1D.2), deterministic capability-aware model selection (1D.3), the formal memory architecture specification (1E.1), and memory data models with an in-memory repository (1E.2).
+EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), provider-neutral model intelligence architecture (1C), central model registry & capabilities (1D.1), real external AI model provider integration via Google Gemini (1D.2), deterministic capability-aware model selection (1D.3), the formal memory architecture specification (1E.1), memory data models with an in-memory repository (1E.2), and a production-oriented PostgreSQL persistent repository (1E.3).
 
-The memory subsystem establishes:
-- **Canonical Memory Models** — Concrete Pydantic records (`MemoryRecord`, `ProvenanceRecord`, `AccessMetadata`, `RetentionMetadata`, `EmbeddingReference`) implementing the authoritative memory hierarchy.
-- **Hierarchical Memory Taxonomy** — Strict cognitive tiers (`Working`, `Session`, `Episodic`, `Semantic`, `Procedural`, `Preference`, `ProjectContext`) preserving epistemic distinctions between observed facts and inferred hypotheses.
-- **Storage-Agnostic Contract** — `MemoryRepository` protocol defining asynchronous persistence, retrieval, mutation, deletion, and deterministic filtering.
-- **In-Memory Development Repository** — `InMemoryMemoryRepository` providing zero-dependency local testing, mutation safety, project sandboxing, and deterministic querying prior to PostgreSQL/Redis integration.
+The memory persistence subsystem establishes:
+- **PostgreSQL Relational Persistence** — `PostgreSQLMemoryRepository` implementing the canonical `MemoryRepository` contract with transactional CRUD and deterministic indexed queries.
+- **Lightweight Async Driver** — Native `asyncpg` driver integration with managed connection pooling (`PostgresPoolManager`).
+- **Database Schema & Migrations** — Fully reversible SQL migrations (`migrations/001_create_memory_records.sql`) defining the `memory_records` table, JSONB metadata structures, and B-tree indexes for fast lookups.
+- **Secure Configuration & Fault Tolerance** — Typed `PostgresConfig` supporting `EVA_POSTGRES_DSN`, credential masking in logs/errors, and optional database startup allowing the system to run without an active PostgreSQL instance.
 
 ---
 

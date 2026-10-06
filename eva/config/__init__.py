@@ -42,11 +42,24 @@ class EVASettings(BaseSettings):
     log_level: str = "INFO"
     debug: bool = False
 
-    # Database (optional — not required for Milestone 1A)
+    # Database / PostgreSQL (optional — not required for mock/in-memory mode)
     database_url: str | None = None
+    postgres_dsn: str | None = None
+    postgres_min_connections: int = 2
+    postgres_max_connections: int = 10
+    postgres_connect_timeout: float = 10.0
 
     # Redis (optional — not required for Milestone 1A)
     redis_url: str | None = None
+
+    @model_validator(mode="after")
+    def _sync_database_settings(self) -> EVASettings:
+        """Sync database_url and postgres_dsn if either is set."""
+        if not self.postgres_dsn and self.database_url:
+            self.postgres_dsn = self.database_url
+        elif not self.database_url and self.postgres_dsn:
+            self.database_url = self.postgres_dsn
+        return self
 
     # Model provider & router defaults
     model_provider: str = "mock"

@@ -7,6 +7,10 @@ for EVA's persistent and working memory hierarchy.
 from eva.memory.in_memory import InMemoryMemoryRepository
 from eva.memory.models import (
     AccessMetadata,
+    DatabaseConfigurationError,
+    DatabaseConnectionError,
+    DatabaseError,
+    DatabaseMigrationError,
     DuplicateMemoryError,
     EmbeddingReference,
     ImmutableMemoryError,
@@ -20,10 +24,15 @@ from eva.memory.models import (
     ProvenanceRecord,
     RetentionMetadata,
 )
+from eva.memory.postgres import PostgresConfig, PostgreSQLMemoryRepository
 from eva.memory.repository import MemoryRepository
 
 __all__ = [
     "AccessMetadata",
+    "DatabaseConfigurationError",
+    "DatabaseConnectionError",
+    "DatabaseError",
+    "DatabaseMigrationError",
     "DuplicateMemoryError",
     "EmbeddingReference",
     "ImmutableMemoryError",
@@ -36,6 +45,8 @@ __all__ = [
     "MemorySource",
     "MemoryType",
     "MemoryUpdateError",
+    "PostgresConfig",
+    "PostgreSQLMemoryRepository",
     "ProvenanceRecord",
     "RetentionMetadata",
 ]

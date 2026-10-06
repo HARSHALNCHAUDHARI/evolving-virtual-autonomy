@@ -531,17 +531,32 @@ The Milestone 1E foundation is designed to support the following advanced capabi
 ### 13.1 Milestone Implementation Status
 - **1E.1 — Architecture Specification** — COMPLETE: Authoritative architecture, data models, storage definitions, and lifecycle contracts defined in `docs/MEMORY_SPEC.md`.
 - **1E.2 — Data Models & In-Memory Repository** — COMPLETE: Concrete Pydantic models in `eva/memory/models.py`, `MemoryRepository` protocol in `eva/memory/repository.py`, and `InMemoryMemoryRepository` in `eva/memory/in_memory.py`.
-- **Status Notes**:
-  - In-memory storage exists for zero-dependency contract validation, local development, and offline testing.
-  - Production persistence does not yet exist.
-  - PostgreSQL, pgvector, and Redis remain future milestones (1E.3, 1E.4).
+- **1E.3 — PostgreSQL Persistent Repository** — COMPLETE: PostgreSQL relational persistence layer with asyncpg driver, connection pooling, migrations, and `PostgreSQLMemoryRepository`.
 
-### 13.2 Subsystem Roadmap
+### 13.2 PostgreSQL Relational Persistence Architecture (1E.3)
+- **Role**: Durable system of record providing transactional persistence, relational integrity, and deterministic indexed filtering.
+- **Driver**: Direct, lightweight asynchronous PostgreSQL driver (`asyncpg>=0.29.0`).
+- **Schema & Migration**:
+  - `migrations/001_create_memory_records.sql`: Defines `memory_records` table with UUID primary key, strict boundary checks on `confidence`, `importance`, and `relevance`, JSONB containers for metadata, and B-tree indexes for `memory_type`, `project_id`, `session_id`, `source`, `created_at`, and `updated_at`.
+  - `migrations/001_create_memory_records_down.sql`: Fully reversible table teardown.
+- **Configuration**:
+  - Typed `PostgresConfig` and `EVASettings.postgres_dsn` supporting `EVA_POSTGRES_DSN`.
+  - Safe credential masking (`masked_dsn`) ensuring passwords and connection secrets are never logged or exposed.
+  - Development/offline resilience: PostgreSQL is optional for default mock/in-memory mode; absence of a live database does not block EVA runtime initialization.
+- **Repository Implementation**:
+  - `PostgreSQLMemoryRepository` in `eva/memory/postgres/repository.py` conforming to `MemoryRepository`.
+  - Enforces `DuplicateMemoryError` on ID collision, `MemoryNotFoundError` on missing record updates, and `ImmutableMemoryError` on immutable record tampering.
+  - Deterministic query compilation preserving AND semantics and reverse-chronological ordering.
+- **Current Scope Boundaries & Limitations**:
+  - `pgvector` dense vector embeddings and HNSW indexing remain future milestones (Milestone 1E.4).
+  - Redis hot caching and working memory ring buffers remain future milestones (Milestone 1E.4 / 1E.5).
+
+### 13.3 Subsystem Roadmap
 
 | Milestone | Scope | Deliverables | Status |
 |---|---|---|---|
 | **1E.1** | **Memory Specification** | Authoritative architecture, data models, storage definitions, and lifecycle contracts (`docs/MEMORY_SPEC.md`). | COMPLETE |
-| **1E.2** *(Current)* | **Memory Data Models & In-Memory Store** | Typed Pydantic models in `eva/memory/models.py`, in-memory repository for zero-dependency local testing. | COMPLETE |
-| **1E.3** | **Relational Storage & Redis Integration** | PostgreSQL schema migration, Redis session/working memory cache. | Planned |
+| **1E.2** | **Memory Data Models & In-Memory Store** | Typed Pydantic models in `eva/memory/models.py`, in-memory repository for zero-dependency local testing. | COMPLETE |
+| **1E.3** *(Current)* | **PostgreSQL Persistent Repository** | Asyncpg connection pooling, migration schema, `PostgreSQLMemoryRepository` implementation. | COMPLETE |
 | **1E.4** | **Vector Search with pgvector** | Embedding generation via `ModelProvider`, HNSW index setup, hybrid retrieval pipeline. | Planned |
 | **1E.5** | **Cognitive Engine Memory Integration** | Integration of `MemoryManager` into `CognitiveEngine` for prompt injection and experience capture. | Planned |
