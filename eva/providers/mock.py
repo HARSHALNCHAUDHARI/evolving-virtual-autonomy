@@ -13,9 +13,11 @@ from typing import Any, TypeVar
 from pydantic import BaseModel, ValidationError
 
 from eva.providers.models import (
+    ModelCapability,
     ModelMetadata,
     ModelRequest,
     ModelResponse,
+    ModelSpec,
     ModelUsage,
 )
 
@@ -44,6 +46,25 @@ class MockProvider:
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def capabilities(self) -> set[ModelCapability]:
+        """Declared capabilities of the mock provider."""
+        return {
+            ModelCapability.TEXT,
+            ModelCapability.REASONING,
+            ModelCapability.STRUCTURED_OUTPUT,
+        }
+
+    def get_spec(self, model: str = "mock-v1") -> ModelSpec:
+        """Return the model specification for this mock provider."""
+        return ModelSpec(
+            provider=self._name,
+            model=model,
+            capabilities=self.capabilities,
+            modalities=["text"],
+            available=True,
+        )
 
     def _determine_text(self, prompt: str) -> str:
         """Produce deterministic text for a given prompt string."""

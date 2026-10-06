@@ -68,10 +68,24 @@ class EVASettings(BaseSettings):
             self.default_model = self.model_name
         return self
 
+    # Gemini provider configuration
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-1.5-flash"
+    gemini_timeout: float = 30.0
+
     # API keys (never logged, never committed)
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
     google_api_key: str | None = None
+
+    @model_validator(mode="after")
+    def _sync_api_keys(self) -> EVASettings:
+        """Sync google_api_key and gemini_api_key if either is set."""
+        if not self.gemini_api_key and self.google_api_key:
+            self.gemini_api_key = self.google_api_key
+        elif not self.google_api_key and self.gemini_api_key:
+            self.google_api_key = self.gemini_api_key
+        return self
 
     @property
     def is_development(self) -> bool:

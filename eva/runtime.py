@@ -16,7 +16,7 @@ from eva.core.enums import EVAStatus
 from eva.core.models import EVAState
 from eva.core.self_model import EVASelfModel
 from eva.logging import get_logger, setup_logging
-from eva.providers import ModelProvider, ModelRouter
+from eva.providers import ModelProvider, ModelRegistry, ModelRouter
 from eva.providers.mock import MockProvider
 from eva.safety import SafetyPolicy
 
@@ -72,6 +72,11 @@ class EVARuntime:
         if self._router is None:
             raise RuntimeError("EVA runtime has not been started. Call start() first.")
         return self._router
+
+    @property
+    def model_registry(self) -> ModelRegistry:
+        """Return the model registry from the router. Requires start() to have been called."""
+        return self.router.registry
 
     @property
     def cognitive_engine(self) -> CognitiveEngine:
@@ -153,9 +158,17 @@ class EVARuntime:
         if provider_name == "mock":
             return MockProvider()
 
+        if provider_name == "gemini":
+            from eva.providers.gemini import GeminiProvider
+
+            return GeminiProvider(
+                api_key=self._settings.gemini_api_key or self._settings.google_api_key,
+                model=self._settings.gemini_model,
+                timeout=self._settings.gemini_timeout,
+            )
+
         # Future providers will be added here:
         # if provider_name == "openai": ...
-        # if provider_name == "gemini": ...
         # if provider_name == "anthropic": ...
 
         logger.warning(

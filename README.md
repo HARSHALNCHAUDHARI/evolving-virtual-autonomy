@@ -6,16 +6,16 @@
 
 ## Current Milestone
 
-**Milestone 1C — Model Intelligence Foundation**
+**Milestone 1D.3 — Intelligent Model Routing**
 
-EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), and a provider-neutral model intelligence architecture (1C).
+EVA features a complete foundation (1A), deterministic cognitive pipeline (1B), provider-neutral model intelligence architecture (1C), central model registry & capabilities (1D.1), real external AI model provider integration via Google Gemini (1D.2), and a deterministic capability-aware model selection system (1D.3).
 
-The model intelligence foundation establishes:
-- **Provider Abstraction** — Asynchronous `ModelProvider` contract supporting text and structured output generation.
-- **Model Router** — Deterministic `ModelRouter` mapping tasks (`conversation`, `understanding`, `reasoning`, `structured_output`) to provider instances.
-- **Provider-Neutral Models** — Strongly-typed `ModelRequest`, `ModelResponse`, `ModelUsage`, and `ModelMetadata`.
-- **Mock Provider** — Deterministic local provider requiring zero network access or API keys.
-- **Future Extension Points** — Clean integration points for OpenAI, Gemini, Claude, and local models without core redesign.
+The intelligent model routing system establishes:
+- **Capability-Aware Candidate Filtering** — Hard gating filters candidate models based on required capabilities (e.g. `structured_output`, `vision`, `reasoning`, `long_context`), minimum priority, and privacy preferences (`local_only`) before scoring. Models lacking a required capability are never selected.
+- **Deterministic Multi-Factor Scoring** — Eligible candidates are evaluated across capability matches, preferred provider/model bonuses, task route mappings, priority tiers, latency tiers, cost preferences, and availability bonuses with deterministic tie-breaking.
+- **Robust Candidate Fallback** — When a primary candidate is unavailable, the router automatically selects the next highest-scoring eligible available candidate and records fallback provenance (`fallback_used=True`, `fallback_from=...`), supported both at selection time and execution dispatch time.
+- **Explainable Routing Decisions** — Every routing cycle generates an explainable `RoutingDecision` providing human-readable justifications (`decision.explain()`), score breakdowns, and candidate evaluation histories.
+- **Architectural Boundary Integrity** — The Model Router strictly handles model selection and dispatch for already-defined tasks, ensuring the cognitive core retains full ownership of understanding, reasoning, planning, decisions, and safety.
 
 ---
 
@@ -103,12 +103,15 @@ Edit `.env` to configure EVA. All settings have sensible defaults:
 | `EVA_ENV` | `development` | Environment (development/testing/production) |
 | `EVA_LOG_LEVEL` | `INFO` | Logging level |
 | `EVA_DEBUG` | `false` | Enable debug mode |
-| `EVA_DEFAULT_PROVIDER` | `mock` | Default AI model provider |
+| `EVA_DEFAULT_PROVIDER` | `mock` | Default AI model provider (`mock` or `gemini`) |
 | `EVA_DEFAULT_MODEL` | `mock-v1` | Default model identifier |
 | `EVA_MODEL_PROVIDER` | `mock` | AI model provider (alias) |
 | `EVA_MODEL_NAME` | `mock-v1` | Model identifier (alias) |
+| `EVA_GEMINI_API_KEY` | *(None)* | Google Gemini API key (optional, for real provider) |
+| `EVA_GEMINI_MODEL` | `gemini-1.5-flash` | Gemini model name |
+| `EVA_GEMINI_TIMEOUT` | `30.0` | Gemini request timeout in seconds |
 
-No API keys, databases, or external services are required for Milestone 1C.
+No external API keys or paid services are required for baseline testing; EVA runs entirely on the deterministic `MockProvider` by default.
 
 ---
 
